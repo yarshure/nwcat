@@ -455,11 +455,16 @@ receive_loop(nw_connection_t connection)
 {
 	nw_connection_receive(connection, 1, UINT32_MAX, ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t receive_error) {
 
+        CFRetain(context);
 		dispatch_block_t schedule_next_receive = ^{
 			// If the context is marked as complete, and is the final context,
 			// we're read-closed.
+            //crash here
+            
 			if (is_complete &&
 				context != NULL && nw_content_context_get_is_final(context)) {
+                //
+                CFRetain(context);
 				exit(0);
 			}
 
@@ -467,8 +472,10 @@ receive_loop(nw_connection_t connection)
 			if (receive_error == NULL) {
 				receive_loop(connection);
 			}
+            CFRetain(context);
 		};
 
+        
 		if (content != NULL) {
 			// If there is content, write it to stdout asynchronously
 			schedule_next_receive = Block_copy(schedule_next_receive);
@@ -479,7 +486,7 @@ receive_loop(nw_connection_t connection)
 				} else {
 					schedule_next_receive();
 				}
-				Block_release(schedule_next_receive);
+                Block_release(schedule_next_receive);
 			});
 		} else {
 			// Content was NULL, so directly schedule the next receive
@@ -504,6 +511,7 @@ send_loop(nw_connection_t connection)
 				// NULL data represents EOF
 				// Send a "write close" on the connection, by sending NULL data with the final message context marked as complete.
 				// Note that it is valid to send with NULL data but a non-NULL context.
+                warn("send null");
 				nw_connection_send(connection, NULL, NW_CONNECTION_FINAL_MESSAGE_CONTEXT, true, ^(nw_error_t  _Nullable error) {
 					if (error != NULL) {
 						errno = nw_error_get_error_code(error);
